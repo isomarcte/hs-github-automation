@@ -3,6 +3,7 @@ module GitHub.Project.Automation
   , teamIssues
   ) where
 
+import Control.Applicative (Applicative(..))
 import Control.Monad (Monad(..), foldM, join)
 import Data.Either (Either)
 import Data.Foldable (foldl')
@@ -44,7 +45,8 @@ teamIssues ::
   -> IO (Either GDD.Error (DMS.Map GDR.Repo (DS.Seq GDI.Issue)))
 teamIssues auth irm team = do
   etr <- GEOT.listTeamRepos' auth team
-  traverse etr
+  ee <- traverse repoVectorToIssueMap etr
+  return $ join ee
   where
     repoToIssueMap ::
          DMS.Map GDR.Repo (DS.Seq GDI.Issue)
@@ -65,7 +67,7 @@ teamIssues auth irm team = do
     repoVectorToIssueMap ::
          GIP.Vector GDR.Repo
       -> IO (Either GDD.Error (DMS.Map GDR.Repo (DS.Seq GDI.Issue)))
-    repoVectorToIssueMap v = foldM repoToIssueMap (pure DMS.empty) v
+    repoVectorToIssueMap v = foldM repoToIssueMap' (pure DMS.empty) v
 
 repoIssues ::
      Maybe GA.Auth
