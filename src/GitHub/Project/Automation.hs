@@ -1,5 +1,6 @@
 module GitHub.Project.Automation
-  ( teamIssues
+  ( orgTeamIssues
+  , teamIssues
   ) where
 
 import Control.Applicative (Applicative(..))
@@ -8,9 +9,8 @@ import Data.Either (Either)
 import Data.Function (($), (.))
 import Data.Functor (fmap)
 import Data.Maybe (Maybe)
-import Data.Ord (Ord)
 import Data.Traversable (traverse)
-import GitHub.Project.Util (vectorToSeq)
+import GitHub.Project.Util (step, vectorToSeq)
 import System.IO (IO)
 
 import qualified Data.Map.Strict as DMS
@@ -27,40 +27,31 @@ import qualified GitHub.Endpoints.Issues as GEI
 import qualified GitHub.Endpoints.Organizations.Teams as GEOT
 import qualified GitHub.Internal.Prelude as GIP
 
--- type TeamRepoIssueMap
---    = DMS.Map GDT.SimpleTeam (DMS.Map GDR.Repo (DS.Seq GDI.Issue))
 type RepoIssueMap = DMS.Map GDR.Repo (DS.Seq GDI.Issue)
+
+type TeamRepoIssueMap = DMS.Map GDT.SimpleTeam RepoIssueMap
 
 type IOE a = IO (Either GDD.Error a)
 
-step ::
-     (Monad m, Monad g, Ord k)
-  => (k -> g (m v))
-  -> m (DMS.Map k v)
-  -> k
-  -> g (m (DMS.Map k v))
-step f mm k = do
-  mv <- f k
-  return $ do
-    m <- mm
-    v <- mv
-    return $ DMS.insert k v m
+orgTeamIssues ::
+     Maybe GA.Auth
+  -> GDO.IssueRepoMod
+  -> GDN.Name GDD.Organization
+  -> IOE TeamRepoIssueMap
+orgTeamIssues auth irm org = do
+  evt <- GEOT.teamsOf' auth org
+  ee <- traverse simpleTeamVectorToRepoIssueMap evt
+  return $ join ee
+  where
+    simpleTeamToRepoIssueMap :: GDT.SimpleTeam -> IOE RepoIssueMap
+    simpleTeamToRepoIssueMap st =
+      let teamId = GDT.simpleTeamId st
+       in teamIssues auth irm teamId
+    simpleTeamVectorToRepoIssueMap ::
+         GIP.Vector GDT.SimpleTeam -> IOE TeamRepoIssueMap
+    simpleTeamVectorToRepoIssueMap =
+      foldM (step simpleTeamToRepoIssueMap) (pure DMS.empty)
 
--- orgTeamIssues ::
---      Maybe GA.Auth
---   -> GDO.IssueRepoMod
---   -> GDN.Name GDD.Organization
---   -> IO (Either GDD.Error TeamRepoIssueMap)
--- orgTeamIssues auth irm org = undefined
---   -- evt <- GEOT.teamsOf' auth org
---   where
---     simpleTeamToRepoIssueMap ::
---       -> GDT.SimpleTeam
---       -> IO (Either GDD.Error TeamRepoIssueMap)
---     simpleTeamToRepoIssueMap m st =
---       let teamId = GDT.simpleTeamId st
---        in do erim <- teamIssues auth irm teamId
---              return $ fmap (\v -> DMS.insert st v m) erim
 teamIssues ::
      Maybe GA.Auth -> GDO.IssueRepoMod -> GDId.Id GDT.Team -> IOE RepoIssueMap
 teamIssues auth irm team = do
@@ -68,13 +59,12 @@ teamIssues auth irm team = do
   ee <- traverse repoVectorToIssueMap etr
   return $ join ee
   where
-    repoToIssueSeq :: GDR.Repo -> IO (Either GDD.Error (DS.Seq GDI.Issue))
+    repoToIssueSeq :: GDR.Repo -> IOE (DS.Seq GDI.Issue)
     repoToIssueSeq r =
       let owner = GDD.simpleOwnerLogin . GDR.repoOwner $ r
           repoName = GDR.repoName r
        in repoIssues auth irm owner repoName
-    repoVectorToIssueMap ::
-         GIP.Vector GDR.Repo -> IO (Either GDD.Error RepoIssueMap)
+    repoVectorToIssueMap :: GIP.Vector GDR.Repo -> IOE RepoIssueMap
     repoVectorToIssueMap = foldM (step repoToIssueSeq) (pure DMS.empty)
 
 repoIssues ::
@@ -82,6 +72,6 @@ repoIssues ::
   -> GDO.IssueRepoMod
   -> GDN.Name GDD.Owner
   -> GDN.Name GDR.Repo
-  -> IO (Either GDD.Error (DS.Seq GDI.Issue))
+  -> IOE (DS.Seq GDI.Issue)
 repoIssues auth irm owner repo =
   fmap (fmap vectorToSeq) (GEI.issuesForRepo' auth owner repo irm)
