@@ -31,6 +31,8 @@ import qualified GitHub.Internal.Prelude as GIP
 --    = DMS.Map GDT.SimpleTeam (DMS.Map GDR.Repo (DS.Seq GDI.Issue))
 type RepoIssueMap = DMS.Map GDR.Repo (DS.Seq GDI.Issue)
 
+type IOE a = IO (Either GDD.Error a)
+
 step ::
      (Monad m, Monad g, Ord k)
   => (k -> g (m v))
@@ -60,10 +62,7 @@ step f mm k = do
 --        in do erim <- teamIssues auth irm teamId
 --              return $ fmap (\v -> DMS.insert st v m) erim
 teamIssues ::
-     Maybe GA.Auth
-  -> GDO.IssueRepoMod
-  -> GDId.Id GDT.Team
-  -> IO (Either GDD.Error RepoIssueMap)
+     Maybe GA.Auth -> GDO.IssueRepoMod -> GDId.Id GDT.Team -> IOE RepoIssueMap
 teamIssues auth irm team = do
   etr <- GEOT.listTeamRepos' auth team
   ee <- traverse repoVectorToIssueMap etr
