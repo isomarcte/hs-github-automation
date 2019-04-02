@@ -1,0 +1,71 @@
+name:                hs-github-project-automation
+version:             0.1.0.0
+github:              "isomarcte/hs-github-project-automation"
+license:             BSD3
+author:              "David Strawn"
+maintainer:          "isomarcte@gmail.com"
+copyright:           "2018 David Strawn, isomarcte@gmail.com"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+
+description:         Please see the README on GitHub at <https://github.com/isomarcte/hs-github-project-automation#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- containers
+- dhall
+- github
+
+default-extensions:
+  - DeriveFunctor
+  - DeriveGeneric
+  - DeriveTraversable
+  - DisambiguateRecordFields
+  - EmptyDataDecls
+  - FlexibleContexts
+  - GADTs
+  - GeneralizedNewtypeDeriving
+  - NamedFieldPuns
+  - NoImplicitPrelude
+  - OverloadedLists
+  - OverloadedStrings
+  - StandaloneDeriving
+  - StrictData
+
+ghc-options:
+  - -Wall
+  - -Werror
+
+library:
+  source-dirs: src
+
+executables:
+  hs-github-project-automation-exe:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - hs-github-project-automation
+
+tests:
+  hs-github-project-automation-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - hs-github-project-automation
